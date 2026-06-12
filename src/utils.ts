@@ -7,6 +7,7 @@ import { getWordPressClient } from './wp-clients';
 import WordpressPlugin from './main';
 import { isString } from 'lodash-es';
 import { ERROR_NOTICE_TIMEOUT } from './consts';
+import { Logger } from './logger';
 import { format } from 'date-fns';
 import { MatterData } from './types';
 import { MarkdownItCommentPluginInstance } from './markdown-it-comment-plugin';
@@ -71,6 +72,9 @@ export function doClientPublish(
   profileOrName: WpProfile | string,
   defaultPostParams?: WordPressPostParams
 ): void {
+  const profileName = isString(profileOrName) ? profileOrName : profileOrName.name;
+  Logger.log('doClientPublish: starting for profile', profileName);
+  Logger.verbose('doClientPublish: defaultPostParams', defaultPostParams);
   let profile: WpProfile | undefined;
   if (isString(profileOrName)) {
     profile = plugin.settings.profiles.find(it => it.name === profileOrName);
@@ -78,11 +82,16 @@ export function doClientPublish(
     profile = profileOrName;
   }
   if (profile) {
+    Logger.verbose('doClientPublish: resolved profile', profile.name, 'apiType', profile.apiType);
     const client = getWordPressClient(plugin, profile);
     if (client) {
+      Logger.verbose('doClientPublish: client created, publishing');
       client.publishPost(defaultPostParams).catch(err => {
+        Logger.verbose('doClientPublish: publish error', err);
         showError(err);
       });
+    } else {
+      Logger.verbose('doClientPublish: no client available for profile');
     }
   } else {
     const noSuchProfileMessage = plugin.i18n.t('error_noSuchProfile', {

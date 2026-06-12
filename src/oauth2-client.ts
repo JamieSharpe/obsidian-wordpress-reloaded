@@ -63,7 +63,8 @@ export class OAuth2Client {
     private readonly options: OAuth2Options,
     private readonly plugin: WordpressPlugin
   ) {
-    Logger.log('OAuth2Client options', options);
+    Logger.log('OAuth2Client: initializing');
+    Logger.verbose('OAuth2Client options', options);
   }
 
   async getAuthorizeCode(params: GetAuthorizeCodeParams): Promise<void> {
@@ -91,7 +92,8 @@ export class OAuth2Client {
       query.code_challenge = codeChallenge?.[1];
     }
 
-    Logger.log('getAuthorizeCode', {
+    Logger.log('OAuth2Client: opening authorize URL');
+    Logger.verbose('getAuthorizeCode', {
       endpoint: this.options.authorizeEndpoint,
       query
     });
@@ -112,7 +114,8 @@ export class OAuth2Client {
       redirect_uri: params.redirectUri
     };
 
-    Logger.log('getToken', {
+    Logger.log('OAuth2Client: requesting token');
+    Logger.verbose('getToken', {
       endpoint: this.options.tokenEndpoint,
       body: generateQueryString(body)
     });
@@ -127,7 +130,8 @@ export class OAuth2Client {
       body: generateQueryString(body)
     })
       .then(response => {
-        Logger.log('getToken response', response);
+        Logger.log('OAuth2Client: token received');
+        Logger.verbose('getToken response', response);
         const resp = response.json;
         return {
           accessToken: resp.access_token,
@@ -153,7 +157,8 @@ export class OAuth2Client {
         }
       });
 
-      Logger.log('validateToken response', response);
+      Logger.log('OAuth2Client: token validated successfully');
+      Logger.verbose('validateToken response', response);
 
       return {
         code: WordPressClientReturnCode.OK,

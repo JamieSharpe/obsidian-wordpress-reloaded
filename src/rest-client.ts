@@ -14,7 +14,8 @@ export class RestClient {
   constructor(
     private readonly options: RestClientOptions
   ) {
-    Logger.log('RestClient', options);
+    Logger.log('RestClient: initializing', options.url.href);
+    Logger.verbose('RestClient options', options);
 
     this.href = this.options.url.href;
     if (this.href.endsWith('/')) {
@@ -38,7 +39,8 @@ export class RestClient {
       headers: {},
       ...options
     };
-    Logger.log('RestClient httpGet', { endpoint, opts });
+    Logger.log('RestClient httpGet', endpoint);
+    Logger.verbose('RestClient httpGet options', { endpoint, opts });
     const response = await request({
       url: endpoint,
       method: 'GET',
@@ -47,6 +49,7 @@ export class RestClient {
         ...opts.headers
       }
     });
+    Logger.verbose('RestClient httpGet response', response);
     return JSON.parse(response);
   }
 
@@ -83,13 +86,15 @@ export class RestClient {
       ...predefinedHeaders,
       ...options.headers
     };
-    Logger.log('RestClient httpPost', { endpoint, body, headers });
+    Logger.log('RestClient httpPost', endpoint);
+    Logger.verbose('RestClient httpPost details', { endpoint, body, headers });
     const response = await request({
       url: endpoint,
       method: 'POST',
       headers,
       body: requestBody
     });
+    Logger.verbose('RestClient httpPost response', response);
     return JSON.parse(response);
   }
 

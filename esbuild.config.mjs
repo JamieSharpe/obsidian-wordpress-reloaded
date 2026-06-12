@@ -12,7 +12,11 @@ https://github.com/devbean/obsidian-wordpress
 */
 `;
 
-const prod = (process.argv[2] === "production");
+const mode = process.argv[2]; // "production" | "debug" | undefined (dev/watch)
+const prod = mode === "production";
+const debug = mode === "debug";
+
+const nodeEnv = prod ? '"production"' : debug ? '"debug"' : '"development"';
 
 const context = await esbuild.context({
 	banner: {
@@ -42,12 +46,12 @@ const context = await esbuild.context({
 	treeShaking: true,
 	minify: prod,
 	define: {
-		"process.env.NODE_ENV": prod ? '"production"' : '"development"'
+		"process.env.NODE_ENV": nodeEnv
 	},
 	outfile: "main.js",
 });
 
-if (prod) {
+if (prod || debug) {
 	await context.rebuild();
 	process.exit(0);
 } else {

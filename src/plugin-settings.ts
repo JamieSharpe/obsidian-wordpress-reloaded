@@ -100,10 +100,12 @@ export async function upgradeSettings(
   existingSettings: SafeAny,
   to: SettingsVersion
 ): Promise<{ needUpgrade: boolean, settings: WordpressPluginSettings }> {
-  Logger.log('upgradeSettings', existingSettings, to);
+  Logger.log('upgradeSettings: current version', existingSettings.version ?? 'V1', '→ target', to);
+  Logger.verbose('upgradeSettings: existing settings', existingSettings);
   if (isUndefined(existingSettings.version)) {
     // V1
     if (to === SettingsVersion.V2) {
+      Logger.log('upgradeSettings: upgrading V1 → V2');
       const newSettings: WordpressPluginSettings = Object.assign({}, DEFAULT_SETTINGS, {
         version: SettingsVersion.V2,
         lang: existingSettings.lang,
@@ -143,12 +145,14 @@ export async function upgradeSettings(
       } else {
         newSettings.profiles = [];
       }
+      Logger.verbose('upgradeSettings: upgraded settings', newSettings);
       return {
         needUpgrade: true,
         settings: newSettings
       };
     }
   }
+  Logger.verbose('upgradeSettings: no upgrade needed');
   return {
     needUpgrade: false,
     settings: existingSettings

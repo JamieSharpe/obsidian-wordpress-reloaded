@@ -29,6 +29,7 @@ import { MatterData, Media } from './types';
 import { openPostPublishedModal } from './post-published-modal';
 import { openLoginModal } from './wp-login-modal';
 import { isFunction } from 'lodash-es';
+import { Logger } from './logger';
 
 export abstract class AbstractWordPressClient implements WordPressClient {
 
@@ -76,6 +77,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
   }
 
   private async getAuth(): Promise<WordPressAuthParams> {
+    Logger.verbose('getAuth: checking credentials for profile', this.profile.name);
     let auth: WordPressAuthParams = {
       username: null,
       password: null
@@ -84,17 +86,24 @@ export abstract class AbstractWordPressClient implements WordPressClient {
       if (this.needLogin()) {
         // Check if there's saved username and password
         if (this.profile.username && this.profile.password) {
+          Logger.verbose('getAuth: using saved credentials, validating user');
           auth = {
             username: this.profile.username,
             password: this.profile.password
           };
           const authResult = await this.validateUser(auth);
+          Logger.verbose('getAuth: validateUser result', authResult.code);
           if (authResult.code !== WordPressClientReturnCode.OK) {
             throw new Error(this.plugin.i18n.t('error_invalidUser'));
           }
+        } else {
+          Logger.verbose('getAuth: no saved credentials, will prompt login modal');
         }
+      } else {
+        Logger.verbose('getAuth: login not required for this client');
       }
     } catch (error) {
+      Logger.verbose('getAuth: credential check failed, opening login modal', error);
       showError(error);
       const result = await openLoginModal(this.plugin, this.profile, async (auth) => {
         const authResult = await this.validateUser(auth);
@@ -102,6 +111,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
       });
       auth = result.auth;
     }
+    Logger.verbose('getAuth: resolved auth username', auth.username);
     return auth;
   }
 
@@ -131,28 +141,46 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     updateMatterData?: (matter: MatterData) => void,
   }): Promise<WordPressClientResult<WordPressPublishResult>> {
     const { postParams, auth, updateMatterData } = params;
+    Logger.verbose('tryToPublish: resolving tags', postParams.tags);
     const tagTerms = await this.getTags(postParams.tags, auth);
     postParams.tags = tagTerms.map(term => term.id);
+    Logger.verbose('tryToPublish: resolved tag IDs', postParams.tags);
+    Logger.verbose('tryToPublish: processing post images');
     await this.updatePostImages({
       auth,
       postParams
     });
-    
+
     let content = postParams.content;
     if (!this.plugin.settings.uploadRawMarkdown) {
+      Logger.verbose('tryToPublish: rendering markdown to HTML');
       content = AppState.markdownParser.render(postParams.content);
+    } else {
+      Logger.verbose('tryToPublish: uploading raw markdown (no HTML render)');
     }
+    Logger.verbose('tryToPublish: calling publish', {
+      title: postParams.title,
+      postId: postParams.postId,
+      status: postParams.status,
+      postType: postParams.postType,
+      categories: postParams.categories,
+      tags: postParams.tags,
+      contentLength: content.length,
+    });
     const result = await this.publish(
       postParams.title ?? 'A post from Obsidian!',
       content,
       postParams,
       auth);
+    Logger.verbose('tryToPublish: publish result', result.code);
     if (result.code === WordPressClientReturnCode.Error) {
+      Logger.verbose('tryToPublish: publish failed', result.error);
       throw new Error(this.plugin.i18n.t('error_publishFailed', {
         code: result.error.code as string,
         message: result.error.message
       }));
     } else {
+      Logger.verbose('tryToPublish: publish succeeded, postId', result.data?.postId);
       new Notice(this.plugin.i18n.t('message_publishSuccessfully'));
       // post id will be returned if creating, true if editing
       const postId = result.data.postId;
@@ -214,9 +242,10 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     if (activeEditor && activeEditor.editor) {
       // process images
       const images = getImages(postParams.content);
+      Logger.verbose('updatePostImages: found images', images.length);
       for (const img of images) {
         if (!img.srcIsUrl) {
-
+          Logger.verbose('updatePostImages: uploading local image', img.src);
           img.src = decodeURI(img.src);
           const fileName = img.src.split("/").pop();
 
@@ -237,6 +266,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
               content: content
             }, auth);
             if (result.code === WordPressClientReturnCode.OK) {
+              Logger.verbose('updatePostImages: uploaded image, url', result.data.url);
               if(img.width && img.height){
                   postParams.content = postParams.content.replace(img.original, `![[${result.data.url}|${img.width}x${img.height}]]`);
               }else if (img.width){
@@ -245,6 +275,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
                   postParams.content = postParams.content.replace(img.original, `![[${result.data.url}]]`);
               }
             } else {
+              Logger.verbose('updatePostImages: image upload failed', result.error);
               if (result.error.code === WordPressClientReturnCode.ServerInternalError) {
                 new Notice(result.error.message, ERROR_NOTICE_TIMEOUT);
               } else {
@@ -255,7 +286,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
             }
           }
         } else {
-          // src is a url, skip uploading
+          Logger.verbose('updatePostImages: skipping remote image', img.src);
         }
       }
       if (this.plugin.settings.replaceMediaLinks) {
@@ -268,6 +299,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
   }
 
   async publishPost(defaultPostParams?: WordPressPostParams): Promise<WordPressClientResult<WordPressPublishResult>> {
+    Logger.log('publishPost: starting', { client: this.name, profile: this.profile.name });
     try {
       if (!this.profile.endpoint || this.profile.endpoint.length === 0) {
         throw new Error(this.plugin.i18n.t('error_noEndpoint'));
@@ -277,6 +309,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
       if (file === null) {
         throw new Error(this.plugin.i18n.t('error_noActiveFile'));
       }
+      Logger.verbose('publishPost: active file', file.path);
 
       // get auth info
       const auth = await this.getAuth();
@@ -284,7 +317,8 @@ export abstract class AbstractWordPressClient implements WordPressClient {
       // read note title, content and matter data
       const title = file.basename;
       const { content, matter: matterData } = await processFile(file, this.plugin.app);
-      
+      Logger.verbose('publishPost: note title', title, 'content length', content.length, 'matter keys', Object.keys(matterData));
+
       // check if profile selected is matched to the one in note property,
       // if not, ask whether to update or not
       await this.checkExistingProfile(matterData);

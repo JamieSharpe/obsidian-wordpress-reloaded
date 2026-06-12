@@ -24,7 +24,8 @@ export class XmlRpcClient {
   constructor(
     private readonly options: XmlRpcOptions
   ) {
-    Logger.log(options);
+    Logger.log('XmlRpcClient: initializing', options.url.href);
+    Logger.verbose('XmlRpcClient options', options);
 
     this.href = this.options.url.href;
     if (this.href.endsWith('/')) {
@@ -62,7 +63,10 @@ export class XmlRpcClient {
       },
       body: xml
     })
-      .then(res => this.responseXmlToObject(res));
+      .then(res => {
+        Logger.verbose(`XmlRpcClient response for ${method}`, res);
+        return this.responseXmlToObject(res);
+      });
   }
 
   private objectToXml(method: string, ...obj: unknown[]): string {
@@ -155,7 +159,7 @@ export class XmlRpcClient {
         .children[0];
       response = this.fromElement(responseValue);
     }
-    //console.log(`response: ${xml}`, response);
+    Logger.verbose('XmlRpcClient responseXmlToObject parsed', response);
     return response;
   }
 

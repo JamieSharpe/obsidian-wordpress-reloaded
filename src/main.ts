@@ -28,6 +28,7 @@ export default class WordpressPlugin extends Plugin {
 
   async onload() {
     Logger.log('loading obsidian-wordpress-reloaded plugin');
+    Logger.verbose('onload: NODE_ENV', process.env.NODE_ENV);
 
     await this.loadSettings();
     // lang should be load early, but after settings
@@ -74,19 +75,24 @@ export default class WordpressPlugin extends Plugin {
   }
 
   async loadSettings() {
+    Logger.log('loadSettings: loading plugin data');
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    Logger.verbose('loadSettings: raw settings', this.settings);
     const { needUpgrade, settings } = await upgradeSettings(this.settings, SettingsVersion.V2);
     this.settings = settings;
     if (needUpgrade) {
+      Logger.log('loadSettings: settings upgraded to V2, saving');
       await this.saveSettings();
     }
 
     const crypto = new PassCrypto();
     const count = this.settings.profiles.length ?? 0;
+    Logger.verbose('loadSettings: decrypting passwords for', count, 'profile(s)');
     for (let i = 0; i < count; i++) {
       const profile = this.settings.profiles[i];
       const enPass = profile.encryptedPassword;
       if (enPass) {
+        Logger.verbose('loadSettings: decrypting password for profile', profile.name);
         profile.password = await crypto.decrypt(enPass.encrypted, enPass.key, enPass.vector);
       }
     }
@@ -94,20 +100,24 @@ export default class WordpressPlugin extends Plugin {
     AppState.markdownParser.set({
       html: this.settings.enableHtml ?? false
     });
+    Logger.log('loadSettings: complete, profiles loaded:', count);
   }
 
   async saveSettings() {
+    Logger.log('saveSettings: saving plugin data');
     const settings = cloneDeep(this.settings);
     for (let i = 0; i < settings.profiles.length; i++) {
       const profile = settings.profiles[i];
       const password = profile.password;
       if (password) {
+        Logger.verbose('saveSettings: encrypting password for profile', profile.name);
         const crypto = new PassCrypto();
         profile.encryptedPassword = await crypto.encrypt(password);
         delete profile.password;
       }
     }
     await this.saveData(settings);
+    Logger.verbose('saveSettings: complete');
   }
 
   updateRibbonIcon(): void {

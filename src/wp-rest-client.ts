@@ -70,6 +70,16 @@ export class WpRestClient extends AbstractWordPressClient {
     if (postParams.status === PostStatus.Future) {
       extra.date = formatISO(postParams.datetime ?? new Date());
     }
+    Logger.log('WpRestClient publish', { url, postId: postParams.postId, status: postParams.status });
+    Logger.verbose('WpRestClient publish request', {
+      url,
+      title,
+      status: postParams.status,
+      commentStatus: postParams.commentStatus,
+      categories: postParams.categories,
+      tags: postParams.tags,
+      extra
+    });
     const resp: SafeAny = await this.client.httpPost(
       url,
       {
@@ -84,7 +94,8 @@ export class WpRestClient extends AbstractWordPressClient {
       {
         headers: this.context.getHeaders(certificate)
       });
-    Logger.log('WpRestClient response', resp);
+    Logger.log('WpRestClient response', resp?.id ?? resp);
+    Logger.verbose('WpRestClient full response', resp);
     try {
       const result = this.context.responseParser.toWordPressPublishResult(postParams, resp);
       return {
@@ -105,36 +116,45 @@ export class WpRestClient extends AbstractWordPressClient {
   }
 
   async getCategories(certificate: WordPressAuthParams): Promise<Term[]> {
+    Logger.verbose('WpRestClient getCategories');
     const data = await this.client.httpGet(
       getUrl(this.context.endpoints?.getCategories, 'wp-json/wp/v2/categories?per_page=100'),
       {
         headers: this.context.getHeaders(certificate)
       });
-    return this.context.responseParser.toTerms(data);
+    const terms = this.context.responseParser.toTerms(data);
+    Logger.verbose('WpRestClient getCategories count', terms.length);
+    return terms;
   }
 
   async getPostTypes(certificate: WordPressAuthParams): Promise<PostType[]> {
+    Logger.verbose('WpRestClient getPostTypes');
     const data: SafeAny = await this.client.httpGet(
       getUrl(this.context.endpoints?.getPostTypes, 'wp-json/wp/v2/types'),
       {
         headers: this.context.getHeaders(certificate)
       });
-    return this.context.responseParser.toPostTypes(data);
+    const types = this.context.responseParser.toPostTypes(data);
+    Logger.verbose('WpRestClient getPostTypes result', types);
+    return types;
   }
 
   async validateUser(certificate: WordPressAuthParams): Promise<WordPressClientResult<boolean>> {
+    Logger.verbose('WpRestClient validateUser');
     try {
       const data = await this.client.httpGet(
         getUrl(this.context.endpoints?.validateUser, `wp-json/wp/v2/users/me`),
         {
           headers: this.context.getHeaders(certificate)
         });
+      Logger.verbose('WpRestClient validateUser success');
       return {
         code: WordPressClientReturnCode.OK,
         data: !!data,
         response: data
       };
     } catch(error) {
+      Logger.verbose('WpRestClient validateUser failed', error);
       return {
         code: WordPressClientReturnCode.Error,
         error: {
