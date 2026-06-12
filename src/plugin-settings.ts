@@ -28,6 +28,11 @@ export const enum CommentConvertMode {
   HTML = 'html'
 }
 
+export const enum SyntaxHighlighter {
+  None = 'none',
+  EnlighterJS = 'enlighterjs',
+}
+
 export interface WordpressPluginSettings {
 
   version?: SettingsVersion;
@@ -79,6 +84,8 @@ export interface WordpressPluginSettings {
    * Whether media links should be replaced after uploading to WordPress.
    */
   replaceMediaLinks: boolean;
+
+  syntaxHighlighter: SyntaxHighlighter;
 }
 
 export const DEFAULT_SETTINGS: WordpressPluginSettings = {
@@ -94,6 +101,7 @@ export const DEFAULT_SETTINGS: WordpressPluginSettings = {
   enableHtml: false,
   uploadRawMarkdown: false,
   replaceMediaLinks: true,
+  syntaxHighlighter: SyntaxHighlighter.None,
 }
 
 export async function upgradeSettings(

@@ -77,8 +77,11 @@ export interface WordPressPostParams {
 
   /**
    * Vault-relative path to the featured image file.
+   * - string: upload this file and set as featured image
+   * - null:   explicitly remove the featured image from the post
+   * - undefined: leave the featured image unchanged
    */
-  featuredImagePath?: string;
+  featuredImagePath?: string | null;
 
   /**
    * WordPress media ID for the featured image, set after upload.

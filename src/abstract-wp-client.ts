@@ -147,7 +147,10 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     Logger.verbose('tryToPublish: resolved tag IDs', postParams.tags);
     Logger.verbose('tryToPublish: processing post images');
     await this.updatePostImages({ auth, postParams });
-    if (postParams.featuredImagePath) {
+    if (postParams.featuredImagePath === null) {
+      postParams.featuredMediaId = 0; // explicitly remove featured image
+      Logger.verbose('tryToPublish: featured image explicitly cleared');
+    } else if (postParams.featuredImagePath) {
       Logger.verbose('tryToPublish: uploading featured image', postParams.featuredImagePath);
       postParams.featuredMediaId = await this.uploadFeaturedImage(postParams.featuredImagePath, auth);
       Logger.verbose('tryToPublish: featured image mediaId', postParams.featuredMediaId);
@@ -205,7 +208,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
           if (postParams.excerpt !== undefined) updates.excerpt = postParams.excerpt || undefined;
           if (postParams.slug !== undefined) updates.slug = postParams.slug || undefined;
           if (postParams.sticky !== undefined) updates.sticky = postParams.sticky;
-          if (postParams.featuredImagePath) updates.featuredImage = postParams.featuredImagePath;
+          if (postParams.featuredImagePath !== undefined) updates.featuredImage = postParams.featuredImagePath; // null writes empty YAML value, string writes path
           if (isFunction(updateMatterData)) {
             updateMatterData(new Proxy({} as MatterData, {
               set(_: MatterData, prop: string, val: unknown) { updates[prop] = val; return true; },
@@ -488,8 +491,12 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     if (postParams.sticky === undefined && matterData.sticky !== undefined) {
       postParams.sticky = Boolean(matterData.sticky);
     }
-    if (postParams.featuredImagePath === undefined && matterData.featuredImage) {
-      postParams.featuredImagePath = String(matterData.featuredImage);
+    if (postParams.featuredImagePath === undefined) {
+      if (matterData.featuredImage) {
+        postParams.featuredImagePath = String(matterData.featuredImage);
+      } else if ('featuredImage' in matterData) {
+        postParams.featuredImagePath = null; // key present but empty → remove from post
+      }
     }
     return postParams;
   }

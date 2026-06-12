@@ -11,6 +11,8 @@ import { Logger } from './logger';
 import { format } from 'date-fns';
 import { MatterData } from './types';
 import { MarkdownItCommentPluginInstance } from './markdown-it-comment-plugin';
+import { MarkdownItEnlighterJSPluginInstance } from './markdown-it-enlighterjs-plugin';
+import { SyntaxHighlighter } from './plugin-settings';
 
 export type SafeAny = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -33,6 +35,7 @@ export function isPromiseFulfilledResult<T>(obj: SafeAny): obj is PromiseFulfill
 export function setupMarkdownParser(settings: WordpressPluginSettings): void {
   MarkdownItMathJax3PluginInstance.updateOutputType(settings.mathJaxOutputType);
   MarkdownItCommentPluginInstance.updateConvertMode(settings.commentConvertMode);
+  MarkdownItEnlighterJSPluginInstance.setEnabled(settings.syntaxHighlighter === SyntaxHighlighter.EnlighterJS);
 }
 
 

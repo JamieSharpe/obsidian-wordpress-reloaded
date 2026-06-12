@@ -3,7 +3,7 @@ import WordpressPlugin from './main';
 import { CommentStatus, PostStatus } from './wp-api';
 import { TranslateKey } from './i18n';
 import { WpProfileManageModal } from './wp-profile-manage-modal';
-import { CommentConvertMode, MathJaxOutputType } from './plugin-settings';
+import { CommentConvertMode, MathJaxOutputType, SyntaxHighlighter } from './plugin-settings';
 import { WpProfile } from './wp-profile';
 import { setupMarkdownParser } from './utils';
 import { AppState } from './app-state';
@@ -39,6 +39,17 @@ export class WordpressSettingTab extends PluginSettingTab {
           return t('settings_commentConvertModeIgnoreDesc');
         case CommentConvertMode.HTML:
           return t('settings_commentConvertModeHTMLDesc');
+        default:
+          return '';
+      }
+    }
+
+    const getSyntaxHighlighterDesc = (type: SyntaxHighlighter): string => {
+      switch (type) {
+        case SyntaxHighlighter.None:
+          return t('settings_syntaxHighlighterNoneDesc');
+        case SyntaxHighlighter.EnlighterJS:
+          return t('settings_syntaxHighlighterEnlighterJSDesc');
         default:
           return '';
       }
@@ -178,6 +189,28 @@ export class WordpressSettingTab extends PluginSettingTab {
       });
     containerEl.createEl('p', {
       text: commentConvertModeDesc,
+      cls: 'setting-item-description'
+    });
+
+    let syntaxHighlighterDesc = getSyntaxHighlighterDesc(this.plugin.settings.syntaxHighlighter);
+    new Setting(containerEl)
+      .setName(t('settings_syntaxHighlighter'))
+      .setDesc(t('settings_syntaxHighlighterDesc'))
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption(SyntaxHighlighter.None, t('settings_syntaxHighlighterNone'))
+          .addOption(SyntaxHighlighter.EnlighterJS, t('settings_syntaxHighlighterEnlighterJS'))
+          .setValue(this.plugin.settings.syntaxHighlighter)
+          .onChange(async (value) => {
+            this.plugin.settings.syntaxHighlighter = value as SyntaxHighlighter;
+            syntaxHighlighterDesc = getSyntaxHighlighterDesc(this.plugin.settings.syntaxHighlighter);
+            await this.plugin.saveSettings();
+            this.display();
+            setupMarkdownParser(this.plugin.settings);
+          });
+      });
+    containerEl.createEl('p', {
+      text: syntaxHighlighterDesc,
       cls: 'setting-item-description'
     });
 

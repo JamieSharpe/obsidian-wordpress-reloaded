@@ -46,7 +46,9 @@ export class WpPublishModal extends AbstractModal {
       excerpt: this.matterData.excerpt as string | undefined,
       slug: this.matterData.slug as string | undefined,
       sticky: (this.matterData.sticky as boolean | undefined) ?? false,
-      featuredImagePath: this.matterData.featuredImage as string | undefined,
+      featuredImagePath: this.matterData.featuredImage
+        ? String(this.matterData.featuredImage)
+        : ('featuredImage' in this.matterData ? null : undefined),
     };
 
     this.display(params);
@@ -257,9 +259,9 @@ export class WpPublishModal extends AbstractModal {
       .setName(this.t('publishModal_featuredImage'))
       .setDesc(this.t('publishModal_featuredImageDesc'))
       .addText(text => {
-        text.setPlaceholder('attachments/hero.jpg')
+        text.setPlaceholder('attachments/feature.png')
           .setValue(params.featuredImagePath ?? '')
-          .onChange(value => { params.featuredImagePath = value || undefined; });
+          .onChange(value => { params.featuredImagePath = value || null; });
       });
 
     new Setting(contentEl)

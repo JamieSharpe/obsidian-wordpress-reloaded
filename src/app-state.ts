@@ -3,6 +3,7 @@ import MarkdownIt from 'markdown-it';
 import { MarkdownItImagePluginInstance } from './markdown-it-image-plugin';
 import { MarkdownItCommentPluginInstance } from './markdown-it-comment-plugin';
 import { MarkdownItMathJax3PluginInstance } from './markdown-it-mathjax3-plugin';
+import { MarkdownItEnlighterJSPluginInstance } from './markdown-it-enlighterjs-plugin';
 
 class AppStore {
 
@@ -19,4 +20,5 @@ export const AppState = new AppStore();
 AppState.markdownParser
   .use(MarkdownItCommentPluginInstance.plugin)
   .use(MarkdownItMathJax3PluginInstance.plugin)
-  .use(MarkdownItImagePluginInstance.plugin);
+  .use(MarkdownItImagePluginInstance.plugin)
+  .use(MarkdownItEnlighterJSPluginInstance.plugin);
