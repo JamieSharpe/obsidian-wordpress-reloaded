@@ -1,5 +1,5 @@
 import MarkdownIt from 'markdown-it';
-import Token from 'markdown-it/lib/token';
+import type Token from 'markdown-it/lib/token.mjs';
 import { trim } from 'lodash-es';
 import { Logger } from './logger';
 

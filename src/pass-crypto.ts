@@ -67,9 +67,10 @@ export class PassCrypto {
     }
   }
 
-  private bufferToBase64(buffer: ArrayBuffer): string {
+  private bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
     let result = '';
-    new Uint8Array(buffer).forEach(b => result += String.fromCharCode(b));
+    const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+    bytes.forEach(b => result += String.fromCharCode(b));
     return btoa(result);
   }
 

@@ -176,14 +176,14 @@ export class OAuth2Client {
 export function generateCodeVerifier(): string {
   const arr = new Uint8Array(32);
   crypto.getRandomValues(arr);
-  return base64Url(arr);
+  return base64Url(arr.buffer as ArrayBuffer);
 }
 
 async function getCodeChallenge(codeVerifier: string): Promise<['plain' | 'S256', string]> {
   return ['S256', base64Url(await crypto.subtle.digest('SHA-256', stringToBuffer(codeVerifier)))];
 }
 
-function stringToBuffer(input: string): ArrayBuffer {
+function stringToBuffer(input: string): Uint8Array<ArrayBuffer> {
   const buf = new Uint8Array(input.length);
   for(let i = 0; i < input.length; i++) {
     buf[i] = input.charCodeAt(i) & 0xFF;

@@ -86,7 +86,7 @@ export class FormItems {
 
     const encoder = new TextEncoder();
     const encodedItemStart = encoder.encode(`--${option.boundary}${CRLF}`);
-    const body: ArrayBuffer[] = [];
+    const body: BlobPart[] = [];
     Object.entries(this.#formData).forEach(([ name, data ]) => {
       if (isArray(data)) {
         data.forEach(item => {

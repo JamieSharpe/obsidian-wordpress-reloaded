@@ -16,11 +16,7 @@ import { Logger } from './logger';
 
 export default class WordpressPlugin extends Plugin {
 
-  #settings: WordpressPluginSettings | undefined;
-  get settings() {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this.#settings!;
-  }
+  override settings!: WordpressPluginSettings;
 
   #i18n: I18n | undefined;
   get i18n() {
@@ -35,7 +31,7 @@ export default class WordpressPlugin extends Plugin {
 
     await this.loadSettings();
     // lang should be load early, but after settings
-    this.#i18n = new I18n(this.#settings?.lang);
+    this.#i18n = new I18n(this.settings.lang);
 
     setupMarkdownParser(this.settings);
 
@@ -48,11 +44,11 @@ export default class WordpressPlugin extends Plugin {
       id: 'defaultPublish',
       name: this.#i18n.t('command_publishWithDefault'),
       editorCallback: () => {
-        const defaultProfile = this.#settings?.profiles.find(it => it.isDefault);
+        const defaultProfile = this.settings.profiles.find(it => it.isDefault);
         if (defaultProfile) {
           const params: WordPressPostParams = {
-            status: this.#settings?.defaultPostStatus ?? PostStatus.Draft,
-            commentStatus: this.#settings?.defaultCommentStatus ?? CommentStatus.Open,
+            status: this.settings.defaultPostStatus ?? PostStatus.Draft,
+            commentStatus: this.settings.defaultCommentStatus ?? CommentStatus.Open,
             categories: defaultProfile.lastSelectedCategories ?? [ 1 ],
             postType: PostTypeConst.Post,
             tags: [],
@@ -78,17 +74,17 @@ export default class WordpressPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.#settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    const { needUpgrade, settings } = await upgradeSettings(this.#settings, SettingsVersion.V2);
-    this.#settings = settings;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const { needUpgrade, settings } = await upgradeSettings(this.settings, SettingsVersion.V2);
+    this.settings = settings;
     if (needUpgrade) {
       await this.saveSettings();
     }
 
     const crypto = new PassCrypto();
-    const count = this.#settings?.profiles.length ?? 0;
+    const count = this.settings.profiles.length ?? 0;
     for (let i = 0; i < count; i++) {
-      const profile = this.#settings?.profiles[i];
+      const profile = this.settings.profiles[i];
       const enPass = profile.encryptedPassword;
       if (enPass) {
         profile.password = await crypto.decrypt(enPass.encrypted, enPass.key, enPass.vector);
@@ -96,7 +92,7 @@ export default class WordpressPlugin extends Plugin {
     }
 
     AppState.markdownParser.set({
-      html: this.#settings?.enableHtml ?? false
+      html: this.settings.enableHtml ?? false
     });
   }
 
@@ -116,7 +112,7 @@ export default class WordpressPlugin extends Plugin {
 
   updateRibbonIcon(): void {
     const ribbonIconTitle = this.#i18n?.t('ribbon_iconTitle') ?? 'WordPress';
-    if (this.#settings?.showRibbonIcon) {
+    if (this.settings.showRibbonIcon) {
       if (!this.ribbonWpIcon) {
         this.ribbonWpIcon = this.addRibbonIcon('wp-logo', ribbonIconTitle, () => {
           this.openProfileChooser();
