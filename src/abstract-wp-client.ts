@@ -191,14 +191,13 @@ export abstract class AbstractWordPressClient implements WordPressClient {
         if (file) {
           // Collect all updates first so we can use raw-text patching that
           // preserves YAML comments in the frontmatter.
-          const numericPostId = Number(postId);
           const updates: Record<string, unknown> = {
             profileName: this.profile.name,
-            postId: Number.isFinite(numericPostId) ? numericPostId : postId,
+            postId: String(postId),
             postType: postParams.postType,
           };
           if (postParams.postType === PostTypeConst.Post) {
-            updates.categories = postParams.categories;
+            updates.categories = postParams.categories.map(String);
           }
           if (isFunction(updateMatterData)) {
             updateMatterData(new Proxy({} as MatterData, {
@@ -335,7 +334,8 @@ export abstract class AbstractWordPressClient implements WordPressClient {
         });
       } else {
         const categories = await this.getCategories(auth);
-        const selectedCategories = matterData.categories as number[]
+        const rawCats = matterData.categories as (number | string)[] | undefined;
+        const selectedCategories = rawCats?.map(Number)
           ?? this.profile.lastSelectedCategories
           ?? [ 1 ];
         const postTypes = await this.getPostTypes(auth);
@@ -410,7 +410,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
       postParams.title = matterData.title;
     }
     if (matterData.postId) {
-      postParams.postId = matterData.postId;
+      postParams.postId = String(matterData.postId);
     }
     postParams.profileName = matterData.profileName ?? WP_DEFAULT_PROFILE_NAME;
     if (matterData.postType) {
@@ -422,10 +422,11 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     if (postParams.postType === PostTypeConst.Post) {
       // only 'post' supports categories and tags
       if (matterData.categories) {
-        postParams.categories = matterData.categories as number[] ?? this.profile.lastSelectedCategories;
+        // categories are stored as strings in frontmatter; convert to numbers for the API
+        postParams.categories = (matterData.categories as (number | string)[]).map(Number);
       }
       if (matterData.tags) {
-        postParams.tags = matterData.tags as string[];
+        postParams.tags = (matterData.tags as (number | string)[]).map(String);
       }
     }
     return postParams;
