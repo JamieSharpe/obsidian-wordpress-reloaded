@@ -1,4 +1,4 @@
-import { App, Notice, Setting, TFile } from 'obsidian';
+import { App, Notice, Setting, TFile, parseYaml } from 'obsidian';
 import { WpProfile } from './wp-profile';
 import { WordpressPluginSettings } from './plugin-settings';
 import { MarkdownItMathJax3PluginInstance } from './markdown-it-mathjax3-plugin';
@@ -116,16 +116,74 @@ export function showError<T>(error: unknown): WordPressClientResult<T> {
   };
 }
 
-export async function processFile(file: TFile, app: App): Promise<{ content: string, matter: MatterData }> {
-  let fm = app.metadataCache.getFileCache(file)?.frontmatter;
-  if (!fm) {
-    await app.fileManager.processFrontMatter(file, matter => {
-      fm = matter
-    });
+function fmEscapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function setFmKey(body: string, key: string, value: unknown): string {
+  const ek = fmEscapeRe(key);
+  if (Array.isArray(value)) {
+    const items = (value as unknown[]).map(v => `  - ${v}`).join('\n');
+    const newBlock = `${key}:\n${items}`;
+    // Block-style: key:\n  - item\n  - item
+    const blockRe = new RegExp(`^${ek}:[ \\t]*(?:\\r?\\n[ \\t]+-[^\\r\\n]*)+`, 'm');
+    if (blockRe.test(body)) return body.replace(blockRe, newBlock);
+    // Inline-style: key: [item, item]
+    const inlineRe = new RegExp(`^${ek}:[ \\t]*\\[.*?\\][ \\t]*$`, 'm');
+    if (inlineRe.test(body)) return body.replace(inlineRe, newBlock);
+    return body.trimEnd() + '\n' + newBlock;
+  } else {
+    const yaml = `${key}: ${value == null ? '' : String(value)}`;
+    const scalarRe = new RegExp(`^${ek}:[ \\t]*[^\\r\\n]*$`, 'm');
+    if (scalarRe.test(body)) return body.replace(scalarRe, yaml);
+    return body.trimEnd() + '\n' + yaml;
   }
+}
+
+function removeFmKey(body: string, key: string): string {
+  const ek = fmEscapeRe(key);
+  const blockRe = new RegExp(`^${ek}:[ \\t]*(?:\\r?\\n[ \\t]+-[^\\r\\n]*)+`, 'm');
+  const withoutBlock = body.replace(blockRe, '');
+  if (withoutBlock !== body) return withoutBlock;
+  return body.replace(new RegExp(`^${ek}:[ \\t]*[^\\r\\n]*(?:\\r?\\n|$)`, 'm'), '');
+}
+
+/**
+ * Updates frontmatter properties using raw text replacement so that YAML
+ * comments and unrelated properties are preserved. Pass `undefined` as value
+ * to delete a key. Falls back to processFrontMatter when no frontmatter exists.
+ */
+export async function patchFrontMatter(
+  file: TFile,
+  app: App,
+  updates: Record<string, unknown>
+): Promise<void> {
   const raw = await app.vault.read(file);
+  const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!fmMatch) {
+    await app.fileManager.processFrontMatter(file, fm => {
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === undefined) delete fm[k];
+        else fm[k] = v;
+      }
+    });
+    return;
+  }
+  let body = fmMatch[1];
+  const tail = raw.slice(fmMatch[0].length);
+  for (const [key, value] of Object.entries(updates)) {
+    body = value === undefined ? removeFmKey(body, key) : setFmKey(body, key, value);
+  }
+  await app.vault.modify(file, `---\n${body}\n---${tail}`);
+}
+
+export async function processFile(file: TFile, app: App): Promise<{ content: string, matter: MatterData }> {
+  const raw = await app.vault.read(file);
+  const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const matter: MatterData = app.metadataCache.getFileCache(file)?.frontmatter
+    ?? (fmMatch ? (parseYaml(fmMatch[1]) ?? {}) : {});
   return {
     content: raw.replace(/^---[\s\S]+?---/, '').trim(),
-    matter: fm ?? {}
+    matter
   };
 }

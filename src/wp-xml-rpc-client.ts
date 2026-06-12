@@ -15,7 +15,7 @@ import { WpProfile } from './wp-profile';
 import { Media } from './types';
 
 interface FaultResponse {
-  faultCode: string;
+  faultCode: number;
   faultString: string;
 }
 

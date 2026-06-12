@@ -164,9 +164,9 @@ export class XmlRpcClient {
     if (tagName === 'string') {
       return element.getText();
     } else if (tagName === 'i4' || tagName === 'int') {
-      return element.getText();
+      return parseInt(element.getText(), 10);
     } else if (tagName === 'double') {
-      return element.getText();
+      return parseFloat(element.getText());
     } else if (tagName === 'boolean') {
       return element.getText() === '1';
     } else if (tagName === 'dateTime.iso8601') {

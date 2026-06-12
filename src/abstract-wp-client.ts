@@ -15,7 +15,9 @@ import { ERROR_NOTICE_TIMEOUT, WP_DEFAULT_PROFILE_NAME } from './consts';
 import {
   isPromiseFulfilledResult,
   isValidUrl,
-  openWithBrowser, processFile,
+  openWithBrowser,
+  patchFrontMatter,
+  processFile,
   SafeAny,
   showError,
 } from './utils';
@@ -159,17 +161,24 @@ export abstract class AbstractWordPressClient implements WordPressClient {
         // this.updateFrontMatter(modified);
         const file = this.plugin.app.workspace.getActiveFile();
         if (file) {
-          await this.plugin.app.fileManager.processFrontMatter(file, fm => {
-            fm.profileName = this.profile.name;
-            fm.postId = postId;
-            fm.postType = postParams.postType;
-            if (postParams.postType === PostTypeConst.Post) {
-              fm.categories = postParams.categories;
-            }
-            if (isFunction(updateMatterData)) {
-              updateMatterData(fm);
-            }
-          });
+          // Collect all updates first so we can use raw-text patching that
+          // preserves YAML comments in the frontmatter.
+          const numericPostId = Number(postId);
+          const updates: Record<string, unknown> = {
+            profileName: this.profile.name,
+            postId: Number.isFinite(numericPostId) ? numericPostId : postId,
+            postType: postParams.postType,
+          };
+          if (postParams.postType === PostTypeConst.Post) {
+            updates.categories = postParams.categories;
+          }
+          if (isFunction(updateMatterData)) {
+            updateMatterData(new Proxy({} as MatterData, {
+              set(_: MatterData, prop: string, val: unknown) { updates[prop] = val; return true; },
+              deleteProperty(_: MatterData, prop: string) { updates[prop] = undefined; return true; }
+            }));
+          }
+          await patchFrontMatter(file, this.plugin.app, updates);
         }
 
         if (this.plugin.settings.rememberLastSelectedCategories) {
@@ -250,7 +259,10 @@ export abstract class AbstractWordPressClient implements WordPressClient {
         }
       }
       if (this.plugin.settings.replaceMediaLinks) {
-        activeEditor.editor.setValue(postParams.content);
+        const raw = await this.plugin.app.vault.read(activeFile);
+        const frontmatterMatch = raw.match(/^---[\s\S]+?---\s*\n/);
+        const preamble = frontmatterMatch ? frontmatterMatch[0] : '';
+        activeEditor.editor.setValue(preamble + postParams.content);
       }
     }
   }
