@@ -52,6 +52,25 @@ const ATTR_MAP: Record<string, string> = {
 };
 
 function plugin(md: MarkdownIt): void {
+  const prevInline = md.renderer.rules.code_inline;
+
+  md.renderer.rules.code_inline = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    const content = token.content;
+
+    if (pluginOptions.enabled) {
+      const match = content.match(/^([a-zA-Z0-9_+\-]+):([\s\S]*)$/);
+      if (match) {
+        const lang = md.utils.escapeHtml(match[1]);
+        const code = match[2].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `[enlighter lang="${lang}"]${code}[/enlighter]`;
+      }
+    }
+
+    if (prevInline) return prevInline(tokens, idx, options, env, self);
+    return `<code${self.renderAttrs(token)}>${md.utils.escapeHtml(content)}</code>`;
+  };
+
   const prevFence = md.renderer.rules.fence;
 
   md.renderer.rules.fence = (tokens, idx, options, env, self) => {
