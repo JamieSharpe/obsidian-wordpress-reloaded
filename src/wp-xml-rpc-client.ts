@@ -75,6 +75,12 @@ export class WpXmlRpcClient extends AbstractWordPressClient {
         post_date: postParams.datetime ?? new Date()
       };
     }
+    const extra: Record<string, unknown> = {};
+    if (postParams.excerpt) extra.post_excerpt = postParams.excerpt;
+    if (postParams.slug) extra.post_name = postParams.slug;
+    if (postParams.sticky !== undefined) extra.sticky = postParams.sticky ? 1 : 0;
+    if (postParams.featuredMediaId !== undefined) extra.post_thumbnail = postParams.featuredMediaId;
+    publishContent = { ...publishContent, ...extra };
     let publishPromise;
     if (postParams.postId) {
       publishPromise = this.client.methodCall('wp.editPost', [
@@ -205,7 +211,8 @@ export class WpXmlRpcClient extends AbstractWordPressClient {
       return {
         code: WordPressClientReturnCode.OK,
         data: {
-          url: (response as SafeAny).url
+          url: (response as SafeAny).url,
+          mediaId: (response as SafeAny).id !== undefined ? String((response as SafeAny).id) : undefined,
         },
         response
       };

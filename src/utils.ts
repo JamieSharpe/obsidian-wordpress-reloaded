@@ -132,7 +132,7 @@ function fmEscapeRe(s: string): string {
 function setFmKey(body: string, key: string, value: unknown): string {
   const ek = fmEscapeRe(key);
   if (Array.isArray(value)) {
-    const items = (value as unknown[]).map(v => `  - ${v}`).join('\n');
+    const items = (value as unknown[]).map(v => typeof v === 'string' ? `  - "${v}"` : `  - ${v}`).join('\n');
     const newBlock = `${key}:\n${items}`;
     // Block-style: key:\n  - item\n  - item
     const blockRe = new RegExp(`^${ek}:[ \\t]*(?:\\r?\\n[ \\t]+-[^\\r\\n]*)+`, 'm');

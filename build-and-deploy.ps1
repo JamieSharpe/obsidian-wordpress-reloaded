@@ -1,7 +1,15 @@
 param(
   [ValidateSet('debug', 'production')]
-  [string]$Mode = 'debug'
+  [string]$Mode
 )
+
+if (-not $Mode) {
+  Write-Host "Select build mode:"
+  Write-Host "  [1] debug (default)"
+  Write-Host "  [2] production"
+  $choice = Read-Host "Enter 1 or 2"
+  $Mode = if ($choice -eq '2') { 'production' } else { 'debug' }
+}
 
 $pluginDir = "C:\Users\Jamie\obsidian-vault\.obsidian\plugins\obsidian-wordpress"
 

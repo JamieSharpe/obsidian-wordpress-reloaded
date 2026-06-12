@@ -66,10 +66,14 @@ export class WpRestClient extends AbstractWordPressClient {
     } else {
       url = getUrl(this.context.endpoints?.newPost, 'wp-json/wp/v2/posts');
     }
-    const extra: Record<string, string> = {};
+    const extra: Record<string, unknown> = {};
     if (postParams.status === PostStatus.Future) {
       extra.date = formatISO(postParams.datetime ?? new Date());
     }
+    if (postParams.excerpt !== undefined && postParams.excerpt !== '') extra.excerpt = postParams.excerpt;
+    if (postParams.slug) extra.slug = postParams.slug;
+    if (postParams.sticky !== undefined) extra.sticky = postParams.sticky;
+    if (postParams.featuredMediaId !== undefined) extra.featured_media = postParams.featuredMediaId;
     Logger.log('WpRestClient publish', { url, postId: postParams.postId, status: postParams.status });
     Logger.verbose('WpRestClient publish request', {
       url,
@@ -296,7 +300,8 @@ class WpRestClientCommonContext implements WpRestClientContext {
     },
     toWordPressMediaUploadResult: (response: SafeAny): WordPressMediaUploadResult => {
       return {
-        url: response.source_url
+        url: response.source_url,
+        mediaId: response.id !== undefined ? String(response.id) : undefined,
       };
     },
     toTerms: (response: SafeAny): Term[] => {
@@ -387,7 +392,8 @@ export class WpRestClientWpComOAuth2Context implements WpRestClientContext {
       if (response.media.length > 0) {
         const media = response.media[0];
         return {
-          url: media.link
+          url: media.link,
+          mediaId: media.ID !== undefined ? String(media.ID) : undefined,
         };
       } else if (response.errors) {
         throw new Error(response.errors.error.message);

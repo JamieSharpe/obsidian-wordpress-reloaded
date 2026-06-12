@@ -146,10 +146,12 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     postParams.tags = tagTerms.map(term => term.id);
     Logger.verbose('tryToPublish: resolved tag IDs', postParams.tags);
     Logger.verbose('tryToPublish: processing post images');
-    await this.updatePostImages({
-      auth,
-      postParams
-    });
+    await this.updatePostImages({ auth, postParams });
+    if (postParams.featuredImagePath) {
+      Logger.verbose('tryToPublish: uploading featured image', postParams.featuredImagePath);
+      postParams.featuredMediaId = await this.uploadFeaturedImage(postParams.featuredImagePath, auth);
+      Logger.verbose('tryToPublish: featured image mediaId', postParams.featuredMediaId);
+    }
 
     let content = postParams.content;
     if (!this.plugin.settings.uploadRawMarkdown) {
@@ -198,7 +200,12 @@ export abstract class AbstractWordPressClient implements WordPressClient {
           };
           if (postParams.postType === PostTypeConst.Post) {
             updates.categories = postParams.categories.map(String);
+            updates.tags = postParams.tags.length > 0 ? postParams.tags : undefined;
           }
+          if (postParams.excerpt !== undefined) updates.excerpt = postParams.excerpt || undefined;
+          if (postParams.slug !== undefined) updates.slug = postParams.slug || undefined;
+          if (postParams.sticky !== undefined) updates.sticky = postParams.sticky;
+          if (postParams.featuredImagePath) updates.featuredImage = postParams.featuredImagePath;
           if (isFunction(updateMatterData)) {
             updateMatterData(new Proxy({} as MatterData, {
               set(_: MatterData, prop: string, val: unknown) { updates[prop] = val; return true; },
@@ -259,7 +266,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
           if (imgFile instanceof TFile) {
             const content = await this.plugin.app.vault.readBinary(imgFile);
             const fileType = fileTypeChecker.detectFile(content);
-            const result = await this.uploadMedia({
+            const result = await this.uploadMediaWithCache({
               mimeType: fileType?.mimeType ?? 'application/octet-stream',
               fileName: imgFile.name,
               content: content
@@ -295,6 +302,53 @@ export abstract class AbstractWordPressClient implements WordPressClient {
         activeEditor.editor.setValue(preamble + postParams.content);
       }
     }
+  }
+
+  private async hashContent(content: ArrayBuffer): Promise<string> {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', content);
+    return Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  private async uploadMediaWithCache(
+    media: Media,
+    auth: WordPressAuthParams
+  ): Promise<WordPressClientResult<WordPressMediaUploadResult>> {
+    const hash = await this.hashContent(media.content);
+    const cached = this.profile.mediaCache?.[hash];
+    if (cached) {
+      Logger.verbose('uploadMediaWithCache: cache hit', hash);
+      return { code: WordPressClientReturnCode.OK, data: cached };
+    }
+    const result = await this.uploadMedia(media, auth);
+    if (result.code === WordPressClientReturnCode.OK) {
+      if (!this.profile.mediaCache) this.profile.mediaCache = {};
+      this.profile.mediaCache[hash] = result.data;
+      await this.plugin.saveSettings();
+    }
+    return result;
+  }
+
+  private async uploadFeaturedImage(imagePath: string, auth: WordPressAuthParams): Promise<number | undefined> {
+    const sourcePath = this.plugin.app.workspace.getActiveFile()?.path ?? '';
+    const file = this.plugin.app.metadataCache.getFirstLinkpathDest(imagePath, sourcePath);
+    if (!(file instanceof TFile)) {
+      Logger.verbose('uploadFeaturedImage: file not found', imagePath);
+      return undefined;
+    }
+    const content = await this.plugin.app.vault.readBinary(file);
+    const fileType = fileTypeChecker.detectFile(content);
+    const result = await this.uploadMediaWithCache({
+      mimeType: fileType?.mimeType ?? 'application/octet-stream',
+      fileName: file.name,
+      content
+    }, auth);
+    if (result.code === WordPressClientReturnCode.OK && result.data.mediaId) {
+      return Number(result.data.mediaId);
+    }
+    Logger.verbose('uploadFeaturedImage: upload failed or no mediaId returned');
+    return undefined;
   }
 
   async publishPost(defaultPostParams?: WordPressPostParams): Promise<WordPressClientResult<WordPressPublishResult>> {
@@ -421,13 +475,21 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     }
     if (postParams.postType === PostTypeConst.Post) {
       // only 'post' supports categories and tags
-      if (matterData.categories) {
-        // categories are stored as strings in frontmatter; convert to numbers for the API
-        postParams.categories = (matterData.categories as (number | string)[]).map(Number);
-      }
-      if (matterData.tags) {
+      if (!postParams.tags.length && matterData.tags) {
         postParams.tags = (matterData.tags as (number | string)[]).map(String);
       }
+    }
+    if (postParams.excerpt === undefined && matterData.excerpt) {
+      postParams.excerpt = String(matterData.excerpt);
+    }
+    if (postParams.slug === undefined && matterData.slug) {
+      postParams.slug = String(matterData.slug);
+    }
+    if (postParams.sticky === undefined && matterData.sticky !== undefined) {
+      postParams.sticky = Boolean(matterData.sticky);
+    }
+    if (postParams.featuredImagePath === undefined && matterData.featuredImage) {
+      postParams.featuredImagePath = String(matterData.featuredImage);
     }
     return postParams;
   }

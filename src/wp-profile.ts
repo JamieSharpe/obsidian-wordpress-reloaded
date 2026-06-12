@@ -66,4 +66,10 @@ export interface WpProfile {
    * Last selected post categories.
    */
   lastSelectedCategories: number[];
+
+  /**
+   * SHA-256 hash → uploaded media result cache, keyed per profile so each
+   * WordPress site has its own independent cache.
+   */
+  mediaCache?: Record<string, { url: string; mediaId?: string }>;
 }

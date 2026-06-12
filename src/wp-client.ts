@@ -71,6 +71,19 @@ export interface WordPressPostParams {
   profileName?: string;
 
   datetime?: Date;
+  excerpt?: string;
+  slug?: string;
+  sticky?: boolean;
+
+  /**
+   * Vault-relative path to the featured image file.
+   */
+  featuredImagePath?: string;
+
+  /**
+   * WordPress media ID for the featured image, set after upload.
+   */
+  featuredMediaId?: number;
 }
 
 export interface WordPressPublishParams extends WordPressAuthParams {
@@ -85,6 +98,7 @@ export interface WordPressPublishResult {
 
 export interface WordPressMediaUploadResult {
   url: string;
+  mediaId?: string;
 }
 
 export interface WordPressClient {

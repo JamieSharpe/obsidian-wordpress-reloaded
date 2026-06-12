@@ -40,9 +40,13 @@ export class WpPublishModal extends AbstractModal {
       commentStatus: this.plugin.settings.defaultCommentStatus,
       postType: this.postTypes.selected,
       categories: this.categories.selected,
-      tags: [],
+      tags: (this.matterData.tags as string[] | undefined)?.map(String) ?? [],
       title: '',
-      content: ''
+      content: '',
+      excerpt: this.matterData.excerpt as string | undefined,
+      slug: this.matterData.slug as string | undefined,
+      sticky: (this.matterData.sticky as boolean | undefined) ?? false,
+      featuredImagePath: this.matterData.featuredImage as string | undefined,
     };
 
     this.display(params);
@@ -65,6 +69,7 @@ export class WpPublishModal extends AbstractModal {
 
     new Setting(contentEl)
       .setName(this.t('publishModal_postStatus'))
+      .setDesc(this.t('publishModal_postStatusDesc'))
       .addDropdown((dropdown) => {
         dropdown
           .addOption(PostStatus.Draft, this.t('publishModal_postStatusDraft'))
@@ -161,6 +166,7 @@ export class WpPublishModal extends AbstractModal {
 
     new Setting(contentEl)
       .setName(this.t('publishModal_commentStatus'))
+      .setDesc(this.t('publishModal_commentStatusDesc'))
       .addDropdown((dropdown) => {
         dropdown
           .addOption(CommentStatus.Open, this.t('publishModal_commentStatusOpen'))
@@ -174,6 +180,7 @@ export class WpPublishModal extends AbstractModal {
     if (!this.matterData?.postId) {
       new Setting(contentEl)
         .setName(this.t('publishModal_postType'))
+        .setDesc(this.t('publishModal_postTypeDesc'))
         .addDropdown((dropdown) => {
           this.postTypes.items.forEach(it => {
             dropdown.addOption(it, it);
@@ -189,20 +196,72 @@ export class WpPublishModal extends AbstractModal {
 
     if (params.postType === PostTypeConst.Post) {
       if (this.categories.items.length > 0) {
-        new Setting(contentEl)
+        const categorySetting = new Setting(contentEl)
           .setName(this.t('publishModal_category'))
-          .addDropdown((dropdown) => {
-            this.categories.items.forEach(it => {
-              dropdown.addOption(it.id, it.name);
-            });
-            dropdown
-              .setValue(String(params.categories[0]))
-              .onChange((value) => {
-                params.categories = [ toNumber(value) ];
-              });
+          .setDesc(this.t('publishModal_categoryDesc'));
+        const container = categorySetting.controlEl.createDiv('wp-categories-container');
+        this.categories.items.forEach(it => {
+          const label = container.createEl('label', { cls: 'wp-category-label' });
+          const checkbox = label.createEl('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = it.id;
+          checkbox.checked = params.categories.includes(toNumber(it.id));
+          label.createSpan({ text: it.name });
+          checkbox.addEventListener('change', () => {
+            const id = toNumber(it.id);
+            if (checkbox.checked) {
+              if (!params.categories.includes(id)) params.categories.push(id);
+            } else {
+              params.categories = params.categories.filter(c => c !== id);
+            }
           });
+        });
       }
+
+      new Setting(contentEl)
+        .setName(this.t('publishModal_tags'))
+        .setDesc(this.t('publishModal_tagsDesc'))
+        .addText(text => {
+          text.setValue(params.tags.join(', '))
+            .onChange(value => {
+              params.tags = value.split(',').map(t => t.trim()).filter(Boolean);
+            });
+        });
+
+      new Setting(contentEl)
+        .setName(this.t('publishModal_sticky'))
+        .setDesc(this.t('publishModal_stickyDesc'))
+        .addToggle(toggle => {
+          toggle.setValue(params.sticky ?? false)
+            .onChange(value => { params.sticky = value; });
+        });
     }
+
+    new Setting(contentEl)
+      .setName(this.t('publishModal_excerpt'))
+      .setDesc(this.t('publishModal_excerptDesc'))
+      .addText(text => {
+        text.setValue(params.excerpt ?? '')
+          .onChange(value => { params.excerpt = value || undefined; });
+      });
+
+    new Setting(contentEl)
+      .setName(this.t('publishModal_slug'))
+      .setDesc(this.t('publishModal_slugDesc'))
+      .addText(text => {
+        text.setValue(params.slug ?? '')
+          .onChange(value => { params.slug = value || undefined; });
+      });
+
+    new Setting(contentEl)
+      .setName(this.t('publishModal_featuredImage'))
+      .setDesc(this.t('publishModal_featuredImageDesc'))
+      .addText(text => {
+        text.setPlaceholder('attachments/hero.jpg')
+          .setValue(params.featuredImagePath ?? '')
+          .onChange(value => { params.featuredImagePath = value || undefined; });
+      });
+
     new Setting(contentEl)
       .addButton(button => button
         .setButtonText(this.t('publishModal_publishButtonText'))

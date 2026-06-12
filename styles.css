@@ -11,3 +11,16 @@
 .obsidian-wordpress-reloaded-date-input-invalid {
   border-color: var(--text-error) !important;
 }
+
+.wp-categories-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wp-category-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
