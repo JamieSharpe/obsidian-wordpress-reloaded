@@ -10,7 +10,7 @@ import {
   WordPressPublishResult
 } from './wp-client';
 import { WpPublishModal } from './wp-publish-modal';
-import { PostType, PostTypeConst, Term } from './wp-api';
+import { CommentStatus, PostStatus, PostType, PostTypeConst, Term } from './wp-api';
 import { ERROR_NOTICE_TIMEOUT, WP_DEFAULT_PROFILE_NAME } from './consts';
 import {
   isPromiseFulfilledResult,
@@ -200,7 +200,12 @@ export abstract class AbstractWordPressClient implements WordPressClient {
             profileName: this.profile.name,
             postId: String(postId),
             postType: postParams.postType,
+            postStatus: postParams.status,
+            commentStatus: postParams.commentStatus,
           };
+          if (postParams.datetime) {
+            updates.postDate = postParams.datetime.toISOString();
+          }
           if (postParams.postType === PostTypeConst.Post) {
             updates.categories = postParams.categories.map(String);
             updates.tags = postParams.tags.length > 0 ? postParams.tags : undefined;
@@ -470,6 +475,12 @@ export abstract class AbstractWordPressClient implements WordPressClient {
       postParams.postId = String(matterData.postId);
     }
     postParams.profileName = matterData.profileName ?? WP_DEFAULT_PROFILE_NAME;
+    if (matterData.postStatus) {
+      postParams.status = matterData.postStatus as PostStatus;
+    }
+    if (matterData.commentStatus) {
+      postParams.commentStatus = matterData.commentStatus as CommentStatus;
+    }
     if (matterData.postType) {
       postParams.postType = matterData.postType;
     } else {

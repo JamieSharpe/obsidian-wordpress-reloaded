@@ -36,8 +36,8 @@ export class WpPublishModal extends AbstractModal {
 
   onOpen() {
     const params: WordPressPostParams = {
-      status: this.plugin.settings.defaultPostStatus,
-      commentStatus: this.plugin.settings.defaultCommentStatus,
+      status: (this.matterData.postStatus as PostStatus | undefined) ?? this.plugin.settings.defaultPostStatus,
+      commentStatus: (this.matterData.commentStatus as CommentStatus | undefined) ?? this.plugin.settings.defaultCommentStatus,
       postType: this.postTypes.selected,
       categories: this.categories.selected,
       tags: (this.matterData.tags as string[] | undefined)?.map(String) ?? [],
