@@ -5,6 +5,7 @@ import { MarkdownItCommentPluginInstance } from './markdown-it-comment-plugin';
 import { MarkdownItMathJax3PluginInstance } from './markdown-it-mathjax3-plugin';
 import { MarkdownItEnlighterJSPluginInstance } from './markdown-it-enlighterjs-plugin';
 import { markdownItObsidianCalloutPlugin } from './markdown-it-obsidian-callout-plugin';
+import { markdownItWikilinkPlugin } from './markdown-it-wikilink-plugin';
 
 class AppStore {
 
@@ -23,4 +24,5 @@ AppState.markdownParser
   .use(MarkdownItMathJax3PluginInstance.plugin)
   .use(MarkdownItImagePluginInstance.plugin)
   .use(MarkdownItEnlighterJSPluginInstance.plugin)
-  .use(markdownItObsidianCalloutPlugin);
+  .use(markdownItObsidianCalloutPlugin)
+  .use(markdownItWikilinkPlugin);

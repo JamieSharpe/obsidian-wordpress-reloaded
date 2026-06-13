@@ -389,6 +389,12 @@ export abstract class AbstractWordPressClient implements WordPressClient {
       let result: WordPressClientResult<WordPressPublishResult> | undefined;
       if (defaultPostParams) {
         postParams = this.readFromFrontMatter(title, matterData, defaultPostParams);
+        if (postParams.postType === PostTypeConst.Post) {
+          const rawCats = matterData.categories as (number | string)[] | undefined;
+          if (rawCats?.length) {
+            postParams.categories = rawCats.map(Number);
+          }
+        }
         postParams.content = content;
         result = await this.tryToPublish({
           auth,

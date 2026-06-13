@@ -10,7 +10,7 @@ import { openProfileChooserModal } from './wp-profile-chooser-modal';
 import { AppState } from './app-state';
 import { DEFAULT_SETTINGS, SettingsVersion, upgradeSettings, WordpressPluginSettings } from './plugin-settings';
 import { PassCrypto } from './pass-crypto';
-import { doClientPublish, setupMarkdownParser, showError } from './utils';
+import { doClientPublish, processFile, setupMarkdownParser, showError } from './utils';
 import { cloneDeep } from 'lodash-es';
 import { Logger } from './logger';
 
@@ -60,6 +60,14 @@ export default class WordpressPlugin extends Plugin {
         } else {
           showError(this.#i18n?.t('error_noDefaultProfile') ?? 'No default profile found.');
         }
+      }
+    });
+
+    this.addCommand({
+      id: 'quickPublish',
+      name: this.#i18n.t('command_quickPublish'),
+      editorCallback: () => {
+        this.quickPublish();
       }
     });
 
@@ -134,6 +142,36 @@ export default class WordpressPlugin extends Plugin {
         this.ribbonWpIcon = null;
       }
     }
+  }
+
+  private async quickPublish() {
+    const file = this.app.workspace.getActiveFile();
+    if (!file) {
+      showError(this.i18n.t('error_noActiveFile'));
+      return;
+    }
+    const { matter } = await processFile(file, this.app);
+
+    // Resolve profile: frontmatter > default > only profile
+    let profile = this.settings.profiles.find(p => matter.profileName && p.name === matter.profileName)
+      ?? this.settings.profiles.find(p => p.isDefault)
+      ?? (this.settings.profiles.length === 1 ? this.settings.profiles[0] : undefined);
+
+    if (!profile) {
+      showError(this.i18n.t('error_noDefaultProfile'));
+      return;
+    }
+
+    const params: WordPressPostParams = {
+      status: this.settings.defaultPostStatus ?? PostStatus.Draft,
+      commentStatus: this.settings.defaultCommentStatus ?? CommentStatus.Open,
+      categories: profile.lastSelectedCategories ?? [ 1 ],
+      postType: PostTypeConst.Post,
+      tags: [],
+      title: '',
+      content: '',
+    };
+    doClientPublish(this, profile, params);
   }
 
   private async openProfileChooser() {
