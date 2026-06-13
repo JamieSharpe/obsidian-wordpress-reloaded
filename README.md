@@ -1,3 +1,7 @@
+# obsidian-wordpress-rereloaded
+
+This is a customisation of a fork [obsidian-wordpress-reloaded](https://github.com/bugparty/obsidian-wordpress-reloaded) that is a maintained fork of the [original obsidian-wordpress plugin](https://github.com/devbean/obsidian-wordpress).
+
 # obsidian-wordpress-reloaded
 
 This is a maintained fork of the [original obsidian-wordpress plugin](https://github.com/devbean/obsidian-wordpress).
