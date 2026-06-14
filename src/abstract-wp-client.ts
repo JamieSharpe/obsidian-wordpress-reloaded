@@ -159,7 +159,7 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     let content = postParams.content;
     if (!this.plugin.settings.uploadRawMarkdown) {
       Logger.verbose('tryToPublish: rendering markdown to HTML');
-      content = AppState.markdownParser.render(postParams.content);
+      content = AppState.markdownParser.render(postParams.content, { currentFile: postParams.title });
     } else {
       Logger.verbose('tryToPublish: uploading raw markdown (no HTML render)');
     }

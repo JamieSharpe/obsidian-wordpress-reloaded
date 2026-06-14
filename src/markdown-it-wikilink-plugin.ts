@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
 
 const tokenType = 'ob_wikilink';
+const crossFileTokenType = 'ob_wikilink_cross';
 
 function slugify(text: string): string {
   return text
@@ -41,6 +42,38 @@ export function markdownItWikilinkPlugin(md: MarkdownIt): void {
   });
 
   md.renderer.rules[tokenType] = (tokens: Token[], idx: number) => {
+    const token = tokens[idx];
+    const href = token.attrGet('href') ?? '#';
+    const text = md.utils.escapeHtml(token.content);
+    return `<a href="${href}">${text}</a>`;
+  };
+
+  // Convert [[FileName#Heading|Display]] to anchor links when FileName matches the current file
+  // (passed via env.currentFile during render). Handles both standard Obsidian single-# links
+  // and TOC-generated links that embed heading level markers (## or ###).
+  md.inline.ruler.after(tokenType, crossFileTokenType, (state, silent) => {
+    const regex = /^\[\[([^#\]\n]+)#+([^|\]\n]+)(?:\|([^\]\n]+))?\]\]/;
+    const match = state.src.slice(state.pos).match(regex);
+    if (!match) return false;
+
+    const fileName = match[1].trim();
+    const currentFile = state.env?.currentFile?.trim();
+
+    if (!currentFile || fileName !== currentFile) return false;
+    if (silent) return true;
+
+    const heading = match[2].trim();
+    const displayText = match[3]?.trim() ?? heading;
+
+    const token = state.push(crossFileTokenType, 'a', 0);
+    token.attrSet('href', `#${slugify(heading)}`);
+    token.content = displayText;
+
+    state.pos += match[0].length;
+    return true;
+  });
+
+  md.renderer.rules[crossFileTokenType] = (tokens: Token[], idx: number) => {
     const token = tokens[idx];
     const href = token.attrGet('href') ?? '#';
     const text = md.utils.escapeHtml(token.content);
