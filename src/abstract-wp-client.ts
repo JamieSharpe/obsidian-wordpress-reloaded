@@ -394,6 +394,10 @@ export abstract class AbstractWordPressClient implements WordPressClient {
           if (rawCats?.length) {
             postParams.categories = rawCats.map(Number);
           }
+          const rawTags = matterData.tags as (number | string)[] | undefined;
+          if (rawTags?.length) {
+            postParams.tags = rawTags.map(String);
+          }
         }
         postParams.content = content;
         result = await this.tryToPublish({
@@ -492,12 +496,6 @@ export abstract class AbstractWordPressClient implements WordPressClient {
     } else {
       // if there is no post type in matter-data, assign it as 'post'
       postParams.postType = PostTypeConst.Post;
-    }
-    if (postParams.postType === PostTypeConst.Post) {
-      // only 'post' supports categories and tags
-      if (!postParams.tags.length && matterData.tags) {
-        postParams.tags = (matterData.tags as (number | string)[]).map(String);
-      }
     }
     if (postParams.excerpt === undefined && matterData.excerpt) {
       postParams.excerpt = String(matterData.excerpt);
